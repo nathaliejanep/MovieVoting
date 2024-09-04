@@ -2,50 +2,54 @@
 pragma solidity 0.8.24;
 
 contract MovieVoting {
-    // Röstning öppen under viss tid    
-    // Vinnande film presenteras vid avslut
-    // Varje omröstning kopplad till användare som skapat den
     enum VotingState { Created, Ongoing, Ended }
 
     struct Voter {
-         bool hasVoted;
-         string votedMovie;
+        bool hasVoted;
+        string votedMovie;
     }
     
     struct MoviePoll {
         string[] movies;
-        mapping (string => uint) votes;
         mapping (address => Voter) voters;
+        mapping (string => uint) votes;
+        uint voteCount;
         address creator;
         VotingState state;
         uint endTime;
-        // uint id;
         string winner;
     }
 
-    // Mapping user to their polls
-    mapping(address => MoviePoll[]) public userPolls;
-    address public owner;
+    // Poll ID to MoviePoll mapping
+    mapping(uint => MoviePoll) private polls;
+    // Creator address to poll IDs mapping
+    mapping(address => uint[]) private creatorPolls;
+    // Poll ID to creator address mapping
+    mapping(uint => address) private pollCreators;
+    // Counter for new poll IDs
+    uint private pollIdCounter;
+    
+    address internal owner;
 
-    event PollCreated(uint pollIndex, address creator);
-    event VoteCasted(uint pollIndex, string movie, uint votes);
-    event PollEnded(uint pollIndex, string winningMovie);
+    event PollCreated(uint pollId, address creator);
+    event VoteCasted(uint pollId, uint votes);
+    event PollEnded(uint pollId, string winningMovie);
 
     error NotOwner(address caller);
     error PollNotOngoing();
-    error PollAlreadyStarted();
-    error PollEndedEarly();
+    error PollIsOngoing();
+    error PollAlreadyEnded();
     error AlreadyVoted();
     error MovieNotFound();
+    error InvalidPollId();
 
-    // error NotOwner(address sender,"Only owner can call this function");
-    modifier onlyOwner(address _creator, uint _pollIndex) {
-        require(userPolls[_creator][_pollIndex].creator == msg.sender, "Only owner can call this function");
+    modifier onlyOwner(uint _pollId) {
+        require(pollCreators[_pollId] == msg.sender, "Only owner can call this function");
         _;
     }
 
-    modifier isOngoing(address _creator, uint _pollIndex) {
-        require(userPolls[_creator][_pollIndex].state == VotingState.Ongoing, "Poll is not ongoing");
+    modifier isOngoing(uint _pollId) {
+        require(polls[_pollId].state == VotingState.Ongoing, "Poll is not ongoing");
         _;
     }
 
@@ -53,71 +57,72 @@ contract MovieVoting {
         owner = msg.sender;
     }
 
-    // Funktion för att skapa röstning
-    function createPoll(string[] memory _movies) public {
+    function createPoll(string[] memory _movies) external {
         require(_movies.length > 0, "At least one movie required");
 
-        MoviePoll storage newPoll = userPolls[msg.sender].push();
+        uint newPollId = pollIdCounter++;
+        MoviePoll storage newPoll = polls[newPollId];
         newPoll.movies = _movies;
         newPoll.creator = msg.sender;
         newPoll.state = VotingState.Created;
 
-        emit PollCreated(userPolls[msg.sender].length - 1, msg.sender);
+        creatorPolls[msg.sender].push(newPollId);
+        pollCreators[newPollId] = msg.sender;
+
+        emit PollCreated(newPollId, msg.sender);
     }
 
-    // Funktion för att starta röstning
-    function startPoll(uint _moviePollId, uint _durationMinutes) public {
-        MoviePoll storage moviePoll = userPolls[msg.sender][_moviePollId];
+    function startPoll(uint _pollId, uint _durationMinutes) external onlyOwner(_pollId) {
+        MoviePoll storage moviePoll = polls[_pollId];
 
-        if (moviePoll.creator != msg.sender){
-           revert NotOwner(msg.sender);
+        if (moviePoll.state == VotingState.Ongoing) {
+            revert PollIsOngoing();
         }
 
-        if(moviePoll.state != VotingState.Created) {
-            revert PollAlreadyStarted();
+        if (moviePoll.state == VotingState.Ended) {
+            revert PollAlreadyEnded();
         }
-
-        // require(moviePoll.state == VotingState.Created, "Poll is already started");
-        // lägg till VotingState.Ended
 
         moviePoll.state = VotingState.Ongoing;
         moviePoll.endTime = block.timestamp + _durationMinutes * 1 minutes;
     }
 
-    // Funktion för att lägga röstning
-    function vote(address _creator, uint _pollIndex, string calldata _movie) public {
-        MoviePoll storage moviePoll = userPolls[_creator][_pollIndex];
+    function vote(uint _pollId, string calldata _movie) external {
+        MoviePoll storage moviePoll = polls[_pollId];
         Voter storage voter = moviePoll.voters[msg.sender];
 
-        if(voter.hasVoted){
+        if (voter.hasVoted) {
             revert AlreadyVoted();
         }
-        //require(!voter.hasVoted, "You have already voted");
-       // require(block.timestamp <= moviePoll.endTime, "Voting period ended");
 
-        // kolla om filmen finns 
+        if (moviePoll.state == VotingState.Ended) {
+            revert PollAlreadyEnded();
+        }
+
         bool movieFound = false;
 
-        for (uint i = 0; 0 < moviePoll.movies.length; i++) {
+        for (uint i = 0; i < moviePoll.movies.length; i++) {
             if (keccak256(bytes(moviePoll.movies[i])) == keccak256(bytes(_movie))) {
                 movieFound = true;
                 break;
             }
         }
 
-        if(!movieFound) {
+        if (!movieFound) {
             revert MovieNotFound();
         }
 
         moviePoll.votes[_movie]++;
+        ++moviePoll.voteCount;
+
         voter.hasVoted = true;
         voter.votedMovie = _movie;
 
-       // emit VoteCasted(_pollIndex, _movie, msg.sender);
+        emit VoteCasted(_pollId, moviePoll.voteCount);
     }
 
-    function endPoll(uint _pollIndex) public onlyOwner(msg.sender, _pollIndex) {
-        MoviePoll storage moviePoll = userPolls[msg.sender][_pollIndex];
+    function endPoll(uint _pollId) external onlyOwner(_pollId) {
+        MoviePoll storage moviePoll = polls[_pollId];
 
         require(moviePoll.state == VotingState.Ongoing, "Poll is not ongoing");
         require(block.timestamp >= moviePoll.endTime, "Voting period has not ended yet");
@@ -138,13 +143,17 @@ contract MovieVoting {
         }
 
         moviePoll.winner = winningMovie;
-        //emit PollEnded(msg.sender, _pollIndex, winningMovie)
+        emit PollEnded(_pollId, winningMovie);
     }
 
-    function getWinner(uint _pollIndex) public view returns (string memory) {
-        MoviePoll storage moviePoll = userPolls[msg.sender][_pollIndex];
+    function getWinner(uint _pollId) external view returns (string memory) {
+        MoviePoll storage moviePoll = polls[_pollId];
         require(moviePoll.state == VotingState.Ended, "Poll has not ended yet");
         return moviePoll.winner;
+    }
+
+    function getPollsByCreator() external view returns (uint[] memory) {
+        return creatorPolls[msg.sender];
     }
 
     fallback() external payable {
@@ -154,5 +163,4 @@ contract MovieVoting {
     receive() external payable {
         revert("This contract does not accept ETH");
     }
-
 }
