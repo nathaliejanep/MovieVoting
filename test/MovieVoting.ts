@@ -1,18 +1,15 @@
 import { expect } from 'chai';
-import { Contract, Signer } from 'ethers';
+import { Signer } from 'ethers';
 import hre, { ethers } from 'hardhat';
 
 describe('MovieVoting', () => {
   let movieVoting: any;
   let owner: Signer;
   let otherAccount: Signer;
-  let anotherAccount: Signer;
 
   beforeEach(async () => {
-    // Get signers
-    [owner, otherAccount, anotherAccount] = await ethers.getSigners();
+    [owner, otherAccount] = await ethers.getSigners();
 
-    // Get Contract
     const MovieVoting = await ethers.getContractFactory('MovieVoting');
     movieVoting = await MovieVoting.deploy();
   });
@@ -85,12 +82,11 @@ describe('MovieVoting', () => {
       const pollId = pollIds[0];
 
       await movieVoting.connect(owner).startPoll(pollId, 10);
-      await ethers.provider.send('evm_increaseTime', [600]); // Advance time by 10 minutes
-      await ethers.provider.send('evm_mine', []); // Mine a block
+      await ethers.provider.send('evm_increaseTime', [600]); // Increment time w/ 10 minutes
 
       await movieVoting.connect(owner).endPoll(pollId);
       const poll = await movieVoting.polls(pollId);
-      expect(poll.state).to.equal(2); // Ended
+      expect(poll.state).to.equal(2);
     });
 
     it('Should revert if poll has not ended yet', async () => {
@@ -99,7 +95,7 @@ describe('MovieVoting', () => {
       const pollIds = await movieVoting.getPollsByCreator();
       const pollId = pollIds[0];
 
-      await movieVoting.connect(owner).startPoll(pollId, 1); // 1 minute
+      await movieVoting.connect(owner).startPoll(pollId, 1);
       await expect(
         movieVoting.connect(owner).endPoll(pollId)
       ).to.be.revertedWith('Voting period has not ended yet');
@@ -119,8 +115,7 @@ describe('MovieVoting', () => {
       const votesForMovie = await movieVoting
         .connect(owner)
         .getVotesForMovie(pollId, 'Movie1');
-      //   const poll = await movieVoting.polls(pollId);
-      //   expect(poll.votes('Movie1')).to.equal(1);
+
       expect(votesForMovie).to.equal(1);
     });
 
