@@ -21,15 +21,15 @@ contract MovieVoting {
     }
 
     // Poll ID to MoviePoll mapping
-    mapping(uint => MoviePoll) private polls;
+    mapping(uint => MoviePoll) public polls;
     // Creator address to poll IDs mapping
-    mapping(address => uint[]) private creatorPolls;
+    mapping(address => uint[]) public creatorPolls;
     // Poll ID to creator address mapping
-    mapping(uint => address) private pollCreators;
+    mapping(uint => address) public pollCreators;
     // Counter for new poll IDs
     uint private pollIdCounter;
     
-    address internal owner;
+    address public owner;
 
     event PollCreated(uint pollId, address creator);
     event VoteCasted(uint pollId, uint votes);
@@ -154,6 +154,10 @@ contract MovieVoting {
 
     function getPollsByCreator() external view returns (uint[] memory) {
         return creatorPolls[msg.sender];
+    }
+
+    function getVotesForMovie(uint _pollId, string calldata _movie) external view returns (uint) {
+        return polls[_pollId].votes[_movie];
     }
 
     fallback() external payable {
