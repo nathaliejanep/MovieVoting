@@ -1,0 +1,23 @@
+{
+  "name": "movievoting",
+  "version": "1.0.0",
+  "description": "Vote for favourite movie",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nathaliejanep/MovieVoting.git"
+  },
+  "author": "Nathalie Persson Enriquez",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/nathaliejanep/MovieVoting/issues"
+  },
+  "homepage": "https://github.com/nathaliejanep/MovieVoting#readme",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.10"
+  }
+}
