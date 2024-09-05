@@ -13,7 +13,7 @@ contract MovieVoting {
         string[] movies;
         mapping (address => Voter) voters;
         mapping (string => uint) votes;
-        uint voteCount;
+        uint16 voteCount;
         address creator;
         VotingState state;
         uint endTime;
@@ -24,12 +24,12 @@ contract MovieVoting {
     mapping(uint => MoviePoll) public polls;
     // Creator address to poll IDs mapping
     mapping(address => uint[]) public creatorPolls;
-    // Poll ID to creator address mapping
-    mapping(uint => address) public pollCreators;
+   
     // Counter for new poll IDs
     uint private pollIdCounter;
     
-    address public owner;
+    // chagne to immutable
+    address immutable owner;
 
     event PollCreated(uint pollId, address creator);
     event VoteCasted(uint pollId, uint votes);
@@ -44,7 +44,7 @@ contract MovieVoting {
     error InvalidPollId();
 
     modifier onlyOwner(uint _pollId) {
-        require(pollCreators[_pollId] == msg.sender, "Only owner can call this function");
+        require(polls[_pollId].creator == msg.sender, "Only owner can call this function");
         _;
     }
 
@@ -67,7 +67,7 @@ contract MovieVoting {
         newPoll.state = VotingState.Created;
 
         creatorPolls[msg.sender].push(newPollId);
-        pollCreators[newPollId] = msg.sender;
+        polls[newPollId].creator = msg.sender;
 
         emit PollCreated(newPollId, msg.sender);
     }
@@ -75,6 +75,7 @@ contract MovieVoting {
     function startPoll(uint _pollId, uint _durationMinutes) external onlyOwner(_pollId) {
         MoviePoll storage moviePoll = polls[_pollId];
 
+        // Make these combined
         if (moviePoll.state == VotingState.Ongoing) {
             revert PollIsOngoing();
         }
@@ -112,11 +113,16 @@ contract MovieVoting {
             revert MovieNotFound();
         }
 
-        moviePoll.votes[_movie]++;
+        ++moviePoll.votes[_movie];
         ++moviePoll.voteCount;
+
+        if(moviePoll.votes[_movie] > moviePoll.votes[moviePoll.winner]) {
+            moviePoll.winner = _movie;
+        }
 
         voter.hasVoted = true;
         voter.votedMovie = _movie;
+        // voter = Voter(true, _movie);
 
         emit VoteCasted(_pollId, moviePoll.voteCount);
     }
@@ -129,21 +135,7 @@ contract MovieVoting {
 
         moviePoll.state = VotingState.Ended;
 
-        string memory winningMovie;
-        uint maxVotes = 0;
-
-        for (uint i = 0; i < moviePoll.movies.length; i++) {
-            string memory movie = moviePoll.movies[i];
-            uint voteCount = moviePoll.votes[movie];
-
-            if (voteCount > maxVotes) {
-                maxVotes = voteCount;
-                winningMovie = movie;
-            }
-        }
-
-        moviePoll.winner = winningMovie;
-        emit PollEnded(_pollId, winningMovie);
+        emit PollEnded(_pollId, moviePoll.winner );
     }
 
     function getWinner(uint _pollId) external view returns (string memory) {

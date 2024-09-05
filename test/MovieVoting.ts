@@ -28,16 +28,6 @@ describe('MovieVoting', () => {
       const pollIds = await movieVoting.getPollsByCreator();
       expect(pollIds.length).to.equal(1);
     });
-
-    it('Should set the poll creator correctly', async () => {
-      const movies = ['Movie1', 'Movie2'];
-      await movieVoting.connect(owner).createPoll(movies);
-      const pollIds = await movieVoting.getPollsByCreator();
-      const pollId = pollIds[0];
-
-      const creator = await movieVoting.pollCreators(pollId);
-      expect(creator).to.equal(await owner.getAddress());
-    });
   });
 
   describe('Poll Management', () => {
