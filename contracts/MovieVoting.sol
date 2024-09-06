@@ -25,10 +25,8 @@ contract MovieVoting {
     // Creator address to poll IDs mapping
     mapping(address => uint[]) public creatorPolls;
    
-    // Counter for new poll IDs
     uint private pollIdCounter;
     
-    // chagne to immutable
     address immutable owner;
 
     event PollCreated(uint pollId, address creator);
@@ -75,7 +73,6 @@ contract MovieVoting {
     function startPoll(uint _pollId, uint _durationMinutes) external onlyOwner(_pollId) {
         MoviePoll storage moviePoll = polls[_pollId];
 
-        // Make these combined
         if (moviePoll.state == VotingState.Ongoing) {
             revert PollIsOngoing();
         }
@@ -122,7 +119,6 @@ contract MovieVoting {
 
         voter.hasVoted = true;
         voter.votedMovie = _movie;
-        // voter = Voter(true, _movie);
 
         emit VoteCasted(_pollId, moviePoll.voteCount);
     }

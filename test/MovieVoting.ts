@@ -150,12 +150,4 @@ describe('MovieVoting', () => {
       expect(winner).to.equal('Movie1');
     });
   });
-
-  //   describe('Fallback and Receive', () => {
-  //     it('Should reject ETH sent to the contract', async () => {
-  //       await expect(
-  //         movieVoting.sendTransaction({ value: ethers.utils.parseEther('1.0') })
-  //       ).to.be.revertedWith('This contract does not accept ETH');
-  //     });
-  //   });
 });
