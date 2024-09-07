@@ -15,8 +15,13 @@ describe('MovieVoting', () => {
   });
 
   describe('Deployment', () => {
-    it('Should set the right owner', async () => {
-      expect(await movieVoting.owner()).to.equal(await owner.getAddress());
+    it('Should fail to receive ETH', async function () {
+      await expect(
+        owner.sendTransaction({
+          to: movieVoting.getAddress(),
+          value: ethers.parseEther('1.0'),
+        })
+      ).to.be.revertedWith('This contract does not accept ETH');
     });
   });
 
@@ -27,6 +32,12 @@ describe('MovieVoting', () => {
 
       const pollIds = await movieVoting.getPollsByCreator();
       expect(pollIds.length).to.equal(1);
+    });
+
+    it('Should revert when creating a poll with no movies', async () => {
+      await expect(
+        movieVoting.connect(owner).createPoll([])
+      ).to.be.revertedWith('At least one movie required');
     });
   });
 
@@ -39,7 +50,7 @@ describe('MovieVoting', () => {
 
       await movieVoting.connect(owner).startPoll(pollId, 10);
       const poll = await movieVoting.polls(pollId);
-      expect(poll.state).to.equal(1); // Ongoing
+      expect(poll.state).to.equal(1);
     });
 
     it('Should revert if a non-owner tries to start a poll', async () => {
@@ -63,6 +74,19 @@ describe('MovieVoting', () => {
       await expect(
         movieVoting.connect(owner).startPoll(pollId, 10)
       ).to.be.revertedWithCustomError(movieVoting, 'PollIsOngoing');
+    });
+
+    it('Should revert if poll is already ended', async () => {
+      const movies = ['Movie1', 'Movie2'];
+      await movieVoting.connect(owner).createPoll(movies);
+      const pollIds = await movieVoting.getPollsByCreator();
+      const pollId = pollIds[0];
+
+      await movieVoting.connect(owner).startPoll(pollId, 0);
+      await movieVoting.connect(owner).endPoll(pollId);
+      await expect(
+        movieVoting.connect(owner).startPoll(pollId, 10)
+      ).to.be.revertedWithCustomError(movieVoting, 'PollAlreadyEnded');
     });
 
     it('Should allow the owner to end the poll', async () => {

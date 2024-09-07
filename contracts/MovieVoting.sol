@@ -46,10 +46,10 @@ contract MovieVoting {
         _;
     }
 
-    modifier isOngoing(uint _pollId) {
-        require(polls[_pollId].state == VotingState.Ongoing, "Poll is not ongoing");
-        _;
-    }
+    // modifier isOngoing(uint _pollId) {
+    //     require(polls[_pollId].state == VotingState.Ongoing, "Poll is not ongoing");
+    //     _;
+    // }
 
     constructor() {
         owner = msg.sender;
